@@ -6,7 +6,7 @@ Authors@R:
            comment = c(ORCID = "0000-0002-6731-4229"))
 Description: Use point observation data from sources such as GBIF to perform an entirely data driven simple Red List evaluation.
 License: GPL-3
-Imports: dplyr, ggplot2, ggspatial, raster, red, rgdal, rnaturalearth, stringr
+Imports: dplyr, ggplot2, ggspatial, raster, red, rgdal, rnaturalearth, stringr, stats
 URL: https://github.com/cyesson/RedListEvaluation
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

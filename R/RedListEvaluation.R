@@ -9,6 +9,7 @@ library(rnaturalearth)
 library(ggplot2)
 library(ggspatial)
 library(stringr)
+library(stats)
 #' @import red
 #' @import raster
 #' @import dplyr
@@ -17,6 +18,7 @@ library(stringr)
 #' @import ggplot2
 #' @import ggspatial
 #' @import stringr
+#' @import stats
 
 
 ################################################################
