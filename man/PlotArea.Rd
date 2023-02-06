@@ -12,6 +12,10 @@ PlotArea(df, B, D2, CRS = NA, GridRes = 2000)
 \item{B}{a list returned from EvaluateB()}
 
 \item{D2}{a list returned from EvaluateD2()}
+
+\item{CRS}{a coordinate reference system definition recognisable by sf::st_crs - will guess a local UTM zone if left blank}
+
+\item{GridRes}{a value indicating resolution}
 }
 \value{
 A ggplot object
@@ -24,6 +28,7 @@ Plot a simple map based on unique tetrads of point observations used in evaluati
 display results of B1&2 and D2 evaluations too
 }
 \examples{
+data(Alaria)
 B <- EvaluateB(Alaria)
 D2 <- EvaluateD2(Alaria)
 PlotArea(Alaria, B, D2)

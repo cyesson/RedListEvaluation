@@ -7,13 +7,13 @@
 EvaluateD2(df, StartYear = NA, EndYear = NA, MinObs = 1)
 }
 \arguments{
+\item{df}{dataframe containing columns Latitude, Longitude, Year (of observation)}
+
 \item{StartYear}{observation year to start the assessment}
 
 \item{EndYear}{observation year to end the assessment (defaults to most recent year in data)}
 
 \item{MinObs}{minimum number of observations requires to perform an assessment (default 1)}
-
-\item{dataframe}{containing columns latitude, longitude, year (of observation)}
 }
 \value{
 A list with the following elements
@@ -28,5 +28,6 @@ EvaluateD2() calculate AOO from point distribution data and compares to area thr
 Warning! This makes no evaluation of ongoing threats. To formally apply the D2 criterion you must document a threat
 }
 \examples{
+data(Alaria)
 b <- EvaluateD2(Alaria)
 }

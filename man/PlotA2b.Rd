@@ -19,6 +19,7 @@ Plot data used for criterion A2b evaluation
 Creates a scatter plot of Abundance~Year used for A2b evaluation
 }
 \examples{
+data(Alaria)
 A2b <- EvaluateA2b(Alaria)
 PlotA2b(A2b)
 }

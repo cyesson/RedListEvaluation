@@ -1,25 +1,24 @@
 #####RedListEvaluation - Perform red list evalation from point observation data
 
 ####required packages
-library(red)
-library(raster)
 library(dplyr)
-library(rgdal)
-library(rnaturalearth)
 library(ggplot2)
 library(ggspatial)
-library(stringr)
+library(raster)
+library(red)
+library(sf)
+library(rnaturalearth)
 library(stats)
-#' @import red
-#' @import raster
-#' @import dplyr
-#' @import rgdal
-#' @import rnaturalearth
+library(stringr)
+#' @import dplyr 
 #' @import ggplot2
 #' @import ggspatial
-#' @import stringr
-#' @import stats
-
+#' @import red
+#' @importFrom stats median quantile lm coefficients
+#' @importFrom sf sf_project st_crs
+#' @importFrom raster rasterFromXYZ rasterToPolygons buffer disaggregate
+#' @importFrom rnaturalearth ne_countries
+#' @importFrom stringr str_replace
 
 ################################################################
 # Helper functions
@@ -59,6 +58,16 @@ GetFinalEvaluation<-function(dl){
         final.criteria <- stringr::str_replace(final.criteria, "B1", "B1ab(ii)")
         final.criteria <- stringr::str_replace(final.criteria, "B2", "B2ab(ii)")
 
+        # if LC remove D2 from the end of the string
+        if(final.category=="LC"){
+            final.criteria <- stringr::str_replace(final.criteria, "; D2", "")
+            # if this is LC only based on D2 then its not really an evaluation
+            if(final.criteria=="D2"){
+                final.category<-"DD"
+                final.criteria==""
+            }
+        }
+
         final.category <- paste(final.category, final.criteria)
 
     }
@@ -79,7 +88,7 @@ EvaluateTetradBlocks <- function(df){
     CRS=GetUTMProj(df)
 
     # convert lat/long to utm grid and put coordinates in dataframe
-    xy<-rgdal::project(as.matrix(df[c("Longitude","Latitude")]), CRS)
+    xy<-sf::sf_project(sf::st_crs(4326), CRS, df[c("Longitude","Latitude")])
     df$X<-xy[,1]
     df$Y<-xy[,2]
 
@@ -121,7 +130,7 @@ GetUTMProj <- function(coords){
 
 #' Evaluate criterion A2c 
 #' @description Evaluate criterion A2c based on AOO & EOO trends derived from point observations
-#' @param dataframe containing columns latitude, longitude, year (of observation) 
+#' @param df dataframe containing columns Latitude, Longitude, Year (of observation) 
 #' @param StartYear observation year to start the assessment 
 #' @param EndYear observation year to end the assessment (defaults to most recent year in data)
 #' @param AssessmentYears number of years over which to perform the assessment (default 10)
@@ -148,7 +157,9 @@ GetUTMProj <- function(coords){
 #'         Slope: Slope of the regression Year~EOO (category decline per year)
 #'         p: significance value of the regression Year~EOO 
 #'         Change.Percent: Percentage area change from the start to the end of the assessment period
-#' @examples a2c <- EvaluateA2c(Alaria)
+#' @examples
+#' data(Alaria)
+#' a2c <- EvaluateA2c(Alaria)
 #' @export
 EvaluateA2c<-function(df, StartYear=NA, EndYear=NA, AssessmentYears=10){
 
@@ -257,7 +268,7 @@ EvaluateA2c<-function(df, StartYear=NA, EndYear=NA, AssessmentYears=10){
 
 #' Evaluate criteria B1 & B2
 #' @description Evaluate criteria B1 & B2 based on AOO & EOO derived from point observations
-#' @param dataframe containing columns latitude, longitude, year (of observation) 
+#' @param df dataframe containing columns Latitude, Longitude, Year (of observation) 
 #' @param StartYear observation year to start the assessment 
 #' @param EndYear observation year to end the assessment (defaults to most recent year in data)
 #' @param AssessmentYears number of years over which to perform the assessment (default 10)
@@ -280,7 +291,9 @@ EvaluateA2c<-function(df, StartYear=NA, EndYear=NA, AssessmentYears=10){
 #'    B.Locations: Number of locations based on the Tetrad proxy
 #'    StartYear: start year of evaluation
 #'    EndYear: end year of evaluation
-#' @examples b <- EvaluateB(Alaria)
+#' @examples
+#' data(Alaria)
+#' b <- EvaluateB(Alaria)
 #' @export
 EvaluateB<-function(df, StartYear=NA, EndYear=NA, AssessmentYears=10, MinObs=3){
 
@@ -324,7 +337,7 @@ EvaluateB<-function(df, StartYear=NA, EndYear=NA, AssessmentYears=10, MinObs=3){
     NTetrads <- AOO/4
 
     # proxy 2) number of contiguous tetrad blocks
-    NTetradBlocks <- EvaluateTetradBlocks(df %>% filter(Year>=StartYear & Year<=EndYear))
+    NTetradBlocks <- EvaluateTetradBlocks(dplyr::filter(df, Year>=StartYear & Year<=EndYear))
 
     # use the smallest of the two proxies
     NLocationProxy <- min(NTetrads, NTetradBlocks)
@@ -355,7 +368,7 @@ EvaluateB<-function(df, StartYear=NA, EndYear=NA, AssessmentYears=10, MinObs=3){
 
 #' Evaluate criterion D2
 #' @description Evaluate criteria D2 based on AOO
-#' @param dataframe containing columns latitude, longitude, year (of observation) 
+#' @param df dataframe containing columns Latitude, Longitude, Year (of observation) 
 #' @param StartYear observation year to start the assessment 
 #' @param EndYear observation year to end the assessment (defaults to most recent year in data)
 #' @param MinObs minimum number of observations requires to perform an assessment (default 1)
@@ -364,7 +377,9 @@ EvaluateB<-function(df, StartYear=NA, EndYear=NA, AssessmentYears=10, MinObs=3){
 #' @return A list with the following elements
 #'   AOO: AOO area
 #'   D2: D2 threat category based solely on AOO area (no consideration of ongoing threats)
-#' @examples b <- EvaluateD2(Alaria)
+#' @examples
+#' data(Alaria)
+#' b <- EvaluateD2(Alaria)
 #' @export
 EvaluateD2<-function(df, StartYear=NA, EndYear=NA, MinObs=1){
 
@@ -392,7 +407,7 @@ EvaluateD2<-function(df, StartYear=NA, EndYear=NA, MinObs=1){
 
 #' Evaluate criterion A2b
 #' @description Evaluate criteria A2b based on SACFOR abundance indices
-#' @param dataframe containing columns latitude, longitude, year (of observation) 
+#' @param df dataframe containing columns Latitude, Longitude, Grid (grid reference), Year (of observation) and Abundance (SACFOR category)
 #' @param StartYear observation year to start the assessment 
 #' @param EndYear observation year to end the assessment (defaults to most recent year in data)
 #' @param AssessmentYears number of years over which to perform the assessment (default 10)
@@ -407,7 +422,9 @@ EvaluateD2<-function(df, StartYear=NA, EndYear=NA, MinObs=1){
 #'   NGrids: Number of grid cells with repeat surveys used for assessment
 #'   NObs: Number of observations used in the assessment (includes multiple observations at each grid cell)
 #'   A2b: threat category based on A2b criterion thresholds
-#' @examples a2b <- EvaluateA2b(Alaria)
+#' @examples
+#' data(Alaria)
+#' a2b <- EvaluateA2b(Alaria)
 #' @export
 EvaluateA2b<-function(df, StartYear=NA, EndYear=NA, AssessmentYears=10, MinGrids=5){
 
@@ -429,7 +446,7 @@ EvaluateA2b<-function(df, StartYear=NA, EndYear=NA, AssessmentYears=10, MinGrids
     }
 
     # only consider years within the start & end range
-    df <- df %>% filter(Year>=StartYear & Year<=EndYear & !is.na(Abundance) & Abundance %in% SACFOR)
+    df <- dplyr::filter(df, Year>=StartYear & Year<=EndYear & !is.na(Abundance) & Abundance %in% SACFOR)
 
     if(nrow(df)>0){
 
@@ -437,17 +454,17 @@ EvaluateA2b<-function(df, StartYear=NA, EndYear=NA, AssessmentYears=10, MinGrids
         df$SACFOR<-match(as.character(df$Abundance), SACFOR)
 
         # start by filtering to unique combinations of grid & year
-        df.grid.year <- df %>% group_by(Grid,Year) %>% summarise(AbMean=mean(SACFOR))
+        df.grid.year <- df %>% dplyr::group_by(Grid,Year) %>% dplyr::summarise(AbMean=mean(SACFOR))
 
         # filter for only grids with more than one year of observations
-        repeat.grids<- df.grid.year %>% group_by(Grid) %>% summarise(n=n()) %>% filter(n>1)
+        repeat.grids<- df.grid.year %>% dplyr::group_by(Grid) %>% dplyr::summarise(n=n()) %>% dplyr::filter(n>1)
 
         repeat.grids$Trend<-NA
 
         # loop through grids with multiple years of data
         for(i in 1:nrow(repeat.grids)){
             # subset for grid cell
-            df.g <- df.grid.year %>% filter(Grid==repeat.grids$Grid[i])
+            df.g <- dplyr::filter(df.grid.year, Grid==repeat.grids$Grid[i])
 
             df.g.trend<-lm(AbMean~Year, data=df.g)
 
@@ -464,7 +481,7 @@ EvaluateA2b<-function(df, StartYear=NA, EndYear=NA, AssessmentYears=10, MinGrids
 
 
         # return data for plotting
-        df.plot <- df.grid.year %>% filter(Grid %in% repeat.grids$Grid)
+        df.plot <- dplyr::filter(df.grid.year, Grid %in% repeat.grids$Grid)
 
         Trend.Percentiles <-quantile(repeat.grids$Trend,
                                      c(0.05, 0.1, 0.25, 0.33, 0.5, 0.66, 0.75, 0.9, 0.95))
@@ -475,7 +492,8 @@ EvaluateA2b<-function(df, StartYear=NA, EndYear=NA, AssessmentYears=10, MinGrids
                     Percent=Abundance.Pct.Change*100,
                     NGrids=nrow(repeat.grids),
                     NObs=sum(repeat.grids$n),
-                    A2b=as.character(A2b)))
+                    A2b=as.character(A2b),
+                    SACFOR=SACFOR))
     } else {
         return(list(Data=NA, Trend=NA,
                     Trend.Percentiles=NA,
@@ -488,7 +506,7 @@ EvaluateA2b<-function(df, StartYear=NA, EndYear=NA, AssessmentYears=10, MinGrids
 
 #' Evaluate all Red List Criteria
 #' @description Evaluate all Red List criter from point observation data
-#' @param dataframe containing columns latitude, longitude, year (of observation) 
+#' @param df dataframe containing columns Latitude, Longitude, Year (of observation) 
 #' @param StartYear observation year to start the assessment 
 #' @param EndYear observation year to end the assessment (defaults to most recent year in data)
 #' @param AssessmentYears number of years over which to perform the assessment (default 10)
@@ -502,7 +520,9 @@ EvaluateA2b<-function(df, StartYear=NA, EndYear=NA, AssessmentYears=10, MinGrids
 #'   B: A list returned from function EvaluateB()
 #'   D2: A list returned from function EvaluateD2()
 #'   Final.Evaluation: The final evaluation based on all criteria
-#' @examples all <- EvaluateAllCriteria(Alaria)
+#' @examples
+#' data(Alaria)
+#' all <- EvaluateAllCriteria(Alaria)
 #' @export
 EvaluateAllCriteria<-function(df, StartYear=NA, EndYear=NA, AssessmentYears=10,
                          A2b.MinGrids=5, D2.MinObs=1, B.MinObs=3){
@@ -531,6 +551,7 @@ EvaluateAllCriteria<-function(df, StartYear=NA, EndYear=NA, AssessmentYears=10,
 #' @details Creates a scatter plot of Area~Year used for A2c evaluation
 #' @return A ggplot object
 #' @examples
+#' data(Alaria)
 #' A2c <- EvaluateA2c(Alaria)
 #' PlotA2c(A2c)
 #' @export
@@ -567,6 +588,7 @@ PlotA2c<-function(A2c, type="AOO"){
 #' @details Creates a scatter plot of Abundance~Year used for A2b evaluation
 #' @return A ggplot object
 #' @examples
+#' data(Alaria)
 #' A2b <- EvaluateA2b(Alaria)
 #' PlotA2b(A2b)
 #' @export
@@ -575,21 +597,21 @@ PlotA2b<-function(A2b){
     A2bd<-as.data.frame(A2b$Data)
     A2bd$Observation<-"Site"
 
-    yrs<-min(A2c$Data$Year):max(A2c$Data$Year)
+    yrs<-min(A2b$Data$Year):max(A2b$Data$Year)
 
     yrs.mm<-c(min(A2b$Data$Year),max(A2b$Data$Year))
     yr.dif<-yrs.mm[2]-yrs.mm[1]+1
 
     mean.line<-data.frame(Grid="", Observation="Trend", 
                           AbMean=mean(A2b$Data$AbMean)+c(-1,1)*(A2b$Trend*yr.dif/2),
-                          Year=c(min(A2c$Data$Year),max(A2c$Data$Year)))
+                          Year=c(min(A2b$Data$Year),max(A2b$Data$Year)))
 
     A2bd<-rbind(A2bd, mean.line)
 
     p<-ggplot() +
         geom_line(data=A2bd, aes(x=Year, y=AbMean, group=Grid, colour=Observation)) +
         scale_color_manual(values = c("Site" = "grey", "Trend" = "black")) +
-        scale_y_continuous(name="Abundance Category", breaks=1:8, labels=SACFOR) + 
+        scale_y_continuous(name="Abundance Category", breaks=1:8, labels=A2b$SACFOR) + 
         scale_x_continuous(breaks=yrs, labels=yrs) +
         ggtitle(paste("A2b Criteria (Abundance) =", A2b$A2b))
 
@@ -603,10 +625,13 @@ PlotA2b<-function(A2b){
 #' @param df a data frame used in evaluations
 #' @param B a list returned from EvaluateB()
 #' @param D2 a list returned from EvaluateD2()
+#' @param CRS a coordinate reference system definition recognisable by sf::st_crs - will guess a local UTM zone if left blank
+#' @param GridRes a value indicating resolution 
 #' @details Plot a simple map based on unique tetrads of point observations used in evaluation
 #' display results of B1&2 and D2 evaluations too
 #' @return A ggplot object
 #' @examples
+#' data(Alaria)
 #' B <- EvaluateB(Alaria)
 #' D2 <- EvaluateD2(Alaria)
 #' PlotArea(Alaria, B, D2)
@@ -620,7 +645,7 @@ PlotArea <- function(df, B, D2, CRS=NA, GridRes=2000){
     if(is.na(CRS)){CRS=GetUTMProj(df)}
 
     # convert lat/long to utm grid and put coordinates in dataframe
-    xy<-rgdal::project(as.matrix(df[c("Longitude","Latitude")]), CRS)
+    xy<-sf::sf_project(sf::st_crs(4326), CRS, df[c("Longitude","Latitude")])
     df$X<-xy[,1]
     df$Y<-xy[,2]
 
@@ -650,3 +675,17 @@ PlotArea <- function(df, B, D2, CRS=NA, GridRes=2000){
 
 }
 
+################################################################
+# data layers
+
+#' Test dataset for Alaria esculenta from uk (NBN Atlas 2021).
+#'
+#' Data frame containing Latitude, Longitude, Year & Abundance for Alaria esculenta from UK (NBN Atlas 2021)
+#'
+#' @docType data
+#' @keywords datasets
+#' @name Alaria
+#' @usage data(Alaria)
+#' @format dataframe object with columns Name, Latitude, Longitude, Year & Abundance with data for Alaria esculenta from UK 
+#' @references Joint Nature Conservation Committee (2023). Marine Nature Conservation Review (MNCR) and associated benthic marine data held and managed by JNCC. Occurrence dataset on the NBN Atlas.
+NULL

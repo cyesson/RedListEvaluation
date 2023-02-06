@@ -7,6 +7,8 @@
 EvaluateB(df, StartYear = NA, EndYear = NA, AssessmentYears = 10, MinObs = 3)
 }
 \arguments{
+\item{df}{dataframe containing columns Latitude, Longitude, Year (of observation)}
+
 \item{StartYear}{observation year to start the assessment}
 
 \item{EndYear}{observation year to end the assessment (defaults to most recent year in data)}
@@ -14,8 +16,6 @@ EvaluateB(df, StartYear = NA, EndYear = NA, AssessmentYears = 10, MinObs = 3)
 \item{AssessmentYears}{number of years over which to perform the assessment (default 10)}
 
 \item{MinObs}{minimum number of observations requires to perform an assessment (default 3)}
-
-\item{dataframe}{containing columns latitude, longitude, year (of observation)}
 }
 \value{
 A list containing the following elements
@@ -43,5 +43,6 @@ compare to B1 & B2 criteria thresholds and assign risk category
 assess long term decline by comparing
 }
 \examples{
+data(Alaria)
 b <- EvaluateB(Alaria)
 }

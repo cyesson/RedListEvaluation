@@ -15,6 +15,8 @@ EvaluateAllCriteria(
 )
 }
 \arguments{
+\item{df}{dataframe containing columns Latitude, Longitude, Year (of observation)}
+
 \item{StartYear}{observation year to start the assessment}
 
 \item{EndYear}{observation year to end the assessment (defaults to most recent year in data)}
@@ -26,8 +28,6 @@ EvaluateAllCriteria(
 \item{D2.MinObs}{minimum number of observations requires to perform criterion D2 evaluation (default 1)}
 
 \item{B.MinObs}{minimum number of observations requires to perform criterion B evaluation (default 3)}
-
-\item{dataframe}{containing columns latitude, longitude, year (of observation)}
 }
 \value{
 A list with the following elements
@@ -44,5 +44,6 @@ Evaluate all Red List criter from point observation data
 EvaluateAllCriteria() Evaluate all Red List criteria by calling all criterion evaluations
 }
 \examples{
+data(Alaria)
 all <- EvaluateAllCriteria(Alaria)
 }

@@ -13,6 +13,8 @@ EvaluateA2b(
 )
 }
 \arguments{
+\item{df}{dataframe containing columns Latitude, Longitude, Grid (grid reference), Year (of observation) and Abundance (SACFOR category)}
+
 \item{StartYear}{observation year to start the assessment}
 
 \item{EndYear}{observation year to end the assessment (defaults to most recent year in data)}
@@ -20,8 +22,6 @@ EvaluateA2b(
 \item{AssessmentYears}{number of years over which to perform the assessment (default 10)}
 
 \item{MinGrids}{minimum number of repeat observations required to perform an assessment (default 5)}
-
-\item{dataframe}{containing columns latitude, longitude, year (of observation)}
 }
 \value{
 A list with the following elements
@@ -41,5 +41,6 @@ EvaluateA2b() Measure change in abudance based on SACFORN index
 compare change over the assessment period with A2b criterion thresholds
 }
 \examples{
+data(Alaria)
 a2b <- EvaluateA2b(Alaria)
 }

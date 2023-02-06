@@ -21,6 +21,7 @@ Plot data used for criterion A2c evaluation
 Creates a scatter plot of Area~Year used for A2c evaluation
 }
 \examples{
+data(Alaria)
 A2c <- EvaluateA2c(Alaria)
 PlotA2c(A2c)
 }
