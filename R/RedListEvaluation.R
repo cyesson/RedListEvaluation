@@ -14,7 +14,7 @@ library(stringr)
 #' @import ggplot2
 #' @import ggspatial
 #' @import red
-#' @importFrom stats median quantile lm coefficients
+#' @importFrom stats median quantile lm coefficients predict
 #' @importFrom sf sf_project st_crs
 #' @importFrom raster rasterFromXYZ rasterToPolygons buffer disaggregate
 #' @importFrom rnaturalearth ne_countries
