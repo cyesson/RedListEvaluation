@@ -8,6 +8,8 @@ The goal of RedListEvaluation is to use species distribution data to evaluate sp
 
 The underlying assumption is that you have distribution data that is representative of your species and area over a time period relevant for a Red List evaluation. 
 
+These methods are based on Brodie et al (2023) "Red List for british seaweeds: evaluating the IUCN methodology for non-standard marine organisms". _Biodiversity and Conservation_.
+
 ## Installation
 
 You can install the development version of RedListEvaluation from [GitHub](https://github.com/) with:
