@@ -4,10 +4,12 @@
 library(dplyr)
 library(ggplot2)
 library(ggspatial)
-library(raster)
+#library(raster)
+library(terra)
 library(red)
 library(sf)
 library(rnaturalearth)
+library(rnaturalearthdata)
 library(stats)
 library(stringr)
 #' @import dplyr 
@@ -16,7 +18,8 @@ library(stringr)
 #' @import red
 #' @importFrom stats median quantile lm coefficients predict
 #' @importFrom sf sf_project st_crs
-#' @importFrom raster rasterFromXYZ rasterToPolygons buffer disaggregate
+# @importFrom raster rasterFromXYZ rasterToPolygons buffer disaggregate
+#' @importFrom terra rast as.polygons buffer disagg
 #' @importFrom rnaturalearth ne_countries
 #' @importFrom stringr str_replace
 
@@ -101,13 +104,15 @@ EvaluateTetradBlocks <- function(df){
     d2k$Z <- 1
 
     # create a raster grid from these points
-    raster2k<-raster::rasterFromXYZ(d2k, res=c(2000,2000), crs=CRS)
+    # raster2k<-raster::rasterFromXYZ(d2k, res=c(2000,2000), crs=CRS)
+    raster2k<-terra::rast(d2k, crs=CRS, type='xyz')
     # convert to a polygon
-    r2k.p<-raster::rasterToPolygons(raster2k, dissolve=T)
+    #r2k.p<-raster::rasterToPolygons(raster2k, dissolve=T)
+    r2k.p<-terra::as.polygons(raster2k)
     # put a very small buffer around polygon to connect corners of adjacent blocks
-    r2k.p.b<-raster::buffer(r2k.p, width=0.001, dissolve=T)
+    r2k.p.b<-terra::buffer(r2k.p, width=0.001)
     # separate discontinuous areas
-    r2k.d<-raster::disaggregate(r2k.p.b)
+    r2k.d<-terra::disagg(r2k.p.b)
 
     # number of contiguous blocks of tetrads = the number of features in the polygon
     return(length(r2k.d))
@@ -223,27 +228,32 @@ EvaluateA2c<-function(df, StartYear=NA, EndYear=NA, AssessmentYears=10){
 
     # calculate area for all time, all assessment period, assessment start, assessment end
     mi<-as.matrix(df[c("Latitude","Longitude")])
-    AOO.AllTime=aoo(mi)
-    EOO.AllTime=eoo(mi)
+    AOO.AllTime=red::aoo(mi)
+    EOO.AllTime=red::eoo(mi)
     mi<-as.matrix(df[c("Latitude","Longitude")][df$Year>=StartYear & df$Year<=EndYear,])
-    AOO.AllAssessment=aoo(mi)
-    EOO.AllAssessment=eoo(mi)
+    AOO.AllAssessment=red::aoo(mi)
+    EOO.AllAssessment=red::eoo(mi)
 
     ## AOO
     # finally work out category based on thresholds
     A2c.AOO<-as.character(cut(AOO.Change.Pct,A2c.Threshold,A2c.Category))
     # set to NT if slope is not significant
-    if(A2c.AOO %in% A2c.Category.Threatened & AOO.p>=0.05){A2c.AOO<-"NT"}
-    # set to DD if no p-value
-    if(is.na(AOO.p)){A2c.AOO<-"DD"}
+    if(!is.na(AOO.p)){
+        if(A2c.AOO %in% A2c.Category.Threatened & AOO.p>=0.05){A2c.AOO<-"NT"}
+    } else {
+	A2c.AOO<-"DD"
+    }
 
     ## EOO
     # finally work out category based on thresholds
     A2c.EOO<-as.character(cut(EOO.Change.Pct,A2c.Threshold,A2c.Category))
     # set to NT if slope is not significant
-    if(A2c.EOO %in% A2c.Category.Threatened & EOO.p>=0.05){A2c.EOO<-"NT"}
-    # set to DD if no p-value
-    if(is.na(EOO.p)){A2c.EOO<-"DD"}
+    if(!is.na(EOO.p)){
+        if(A2c.EOO %in% A2c.Category.Threatened & EOO.p>=0.05){A2c.EOO<-"NT"}
+    } else {
+        # set to DD if no p-value
+        A2c.EOO<-"DD"
+    }
 
     return(list(Data=odf,
                 AOO=list(A2c=as.character(A2c.AOO),
@@ -354,8 +364,16 @@ EvaluateB<-function(df, StartYear=NA, EndYear=NA, AssessmentYears=10, MinObs=3){
         B1="LC"
         B2="LC"
     } else {
-        B2 = B.Category[max(as.integer(B2.AOO), as.integer(BLocCat))]
-        B1 = B.Category[max(as.integer(B1.EOO), as.integer(BLocCat))]
+        if(!is.na(B2.AOO)){
+            B2 = B.Category[max(as.integer(B2.AOO), as.integer(BLocCat))]
+        } else {
+            B2="DD"
+        }
+        if(!is.na(B1.EOO)){
+            B1 = B.Category[max(as.integer(B1.EOO), as.integer(BLocCat))]
+        } else {
+            B1="DD"
+        }
     }
 
     return(list(AOO=AOO, AOOAllTime=AOO.AllTime, AOO.Decline=AOO.Decline,
