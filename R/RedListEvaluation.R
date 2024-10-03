@@ -65,7 +65,7 @@ GetFinalEvaluation<-function(dl){
         if(final.category=="LC"){
             final.criteria <- stringr::str_replace(final.criteria, "; D2", "")
             # if this is LC only based on D2 then its not really an evaluation
-            if(final.criteria=="D2"){
+            if(trim(final.criteria)=="D2"){
                 final.category<-"DD"
                 final.criteria==""
             }
@@ -74,6 +74,8 @@ GetFinalEvaluation<-function(dl){
         final.category <- paste(final.category, final.criteria)
 
     }
+
+    if(final.category=="DD D2"){final.category=="DD"}
 
     return(final.category)
     
@@ -210,21 +212,40 @@ EvaluateA2c<-function(df, StartYear=NA, EndYear=NA, AssessmentYears=10){
 
     }
 
-    # find linear regression of area ~ year
-    AOO.lm<-lm(AOO~Year, data=odf)
-    EOO.lm<-lm(EOO~Year, data=odf)
-
-    AOO.p<-coefficients(summary(AOO.lm))[2,][4]
-    EOO.p<-coefficients(summary(EOO.lm))[2,][4]
-
+    # data frame for prediction of change
     ydf=data.frame(Year=c(StartYear,EndYear))
 
-    # predict change % over years of the evaluation
-    AOO.prd<-predict(AOO.lm, newdata=ydf)
-    AOO.Change.Pct<-max(AOO.prd[2],0)/max(AOO.prd[1],0)-1
+    AOO.lm <-NA
+    AOO.p <-NA
+    AOO.prd <- NA
+    AOO.Change.Pct <-NA
+    EOO.lm <-NA
+    EOO.p <-NA
+    EOO.prd <- NA
+    EOO.Change.Pct <-NA
+    
+    # AOO
+    # find linear regression of area ~ year
+    tryCatch(
+        expr = {
+            AOO.lm<-lm(AOO~Year, data=odf)
+            AOO.p<-coefficients(summary(AOO.lm))[2,][4]
+            # predict change % over years of the evaluation
+            AOO.prd<-predict(AOO.lm, newdata=ydf)
+            AOO.Change.Pct<-max(AOO.prd[2],0)/max(AOO.prd[1],0)-1
+        },
+        error = function(e){print("Insufficient data for evaluation")}
+    )
 
-    EOO.prd<-predict(EOO.lm, newdata=ydf)
-    EOO.Change.Pct<-max(EOO.prd[2],0)/max(EOO.prd[1],0)-1
+    tryCatch(
+        expr = {
+            EOO.lm<-lm(EOO~Year, data=odf)
+            EOO.p<-coefficients(summary(EOO.lm))[2,][4]
+            EOO.prd<-predict(EOO.lm, newdata=ydf)
+            EOO.Change.Pct<-max(EOO.prd[2],0)/max(EOO.prd[1],0)-1
+        },
+        error = function(e){print("Insufficient data for evaluation")}
+    )
 
     # calculate area for all time, all assessment period, assessment start, assessment end
     mi<-as.matrix(df[c("Latitude","Longitude")])
@@ -236,23 +257,27 @@ EvaluateA2c<-function(df, StartYear=NA, EndYear=NA, AssessmentYears=10){
 
     ## AOO
     # finally work out category based on thresholds
-    A2c.AOO<-as.character(cut(AOO.Change.Pct,A2c.Threshold,A2c.Category))
-    # set to NT if slope is not significant
-    if(!is.na(AOO.p)){
-        if(A2c.AOO %in% A2c.Category.Threatened & AOO.p>=0.05){A2c.AOO<-"NT"}
-    } else {
-	A2c.AOO<-"DD"
+    A2c.AOO<-"DD"
+    if(!is.na(AOO.Change.Pct)){
+        A2c.AOO<-as.character(cut(AOO.Change.Pct,A2c.Threshold,A2c.Category))
+        # set to NT if slope is not significant
+        if(!is.na(AOO.p)){
+            if(A2c.AOO %in% A2c.Category.Threatened & AOO.p>=0.05){A2c.AOO<-"NT"}
+        }
     }
+
 
     ## EOO
     # finally work out category based on thresholds
-    A2c.EOO<-as.character(cut(EOO.Change.Pct,A2c.Threshold,A2c.Category))
-    # set to NT if slope is not significant
-    if(!is.na(EOO.p)){
-        if(A2c.EOO %in% A2c.Category.Threatened & EOO.p>=0.05){A2c.EOO<-"NT"}
-    } else {
-        # set to DD if no p-value
-        A2c.EOO<-"DD"
+    # finally work out category based on thresholds
+    A2c.EOO<-"DD"
+    if(!is.na(EOO.Change.Pct)){
+
+        A2c.EOO<-as.character(cut(EOO.Change.Pct,A2c.Threshold,A2c.Category))
+        # set to NT if slope is not significant
+        if(!is.na(EOO.p)){
+            if(A2c.EOO %in% A2c.Category.Threatened & EOO.p>=0.05){A2c.EOO<-"NT"}
+        } 
     }
 
     return(list(Data=odf,
@@ -347,7 +372,13 @@ EvaluateB<-function(df, StartYear=NA, EndYear=NA, AssessmentYears=10, MinObs=3){
     NTetrads <- AOO/4
 
     # proxy 2) number of contiguous tetrad blocks
-    NTetradBlocks <- EvaluateTetradBlocks(dplyr::filter(df, Year>=StartYear & Year<=EndYear))
+    NTetradBlocks<-1
+    tryCatch(
+        expr = {
+            NTetradBlocks <- EvaluateTetradBlocks(dplyr::filter(df, Year>=StartYear & Year<=EndYear))
+        },
+        error = function(e){print("Insufficient data for evaluation")}
+    )
 
     # use the smallest of the two proxies
     NLocationProxy <- min(NTetrads, NTetradBlocks)
@@ -479,14 +510,19 @@ EvaluateA2b<-function(df, StartYear=NA, EndYear=NA, AssessmentYears=10, MinGrids
 
         repeat.grids$Trend<-NA
 
-        # loop through grids with multiple years of data
-        for(i in 1:nrow(repeat.grids)){
-            # subset for grid cell
-            df.g <- dplyr::filter(df.grid.year, Grid==repeat.grids$Grid[i])
+        if(nrow(repeat.grids)>=1){
+            # loop through grids with multiple years of data
+            for(i in 1:nrow(repeat.grids)){
+                # subset for grid cell
+                df.g <- dplyr::filter(df.grid.year, Grid==repeat.grids$Grid[i])
 
-            df.g.trend<-lm(AbMean~Year, data=df.g)
-
-            repeat.grids$Trend[i]<-df.g.trend$coefficients[[2]]
+                tryCatch(
+                    expr = {
+                        df.g.trend<-lm(AbMean~Year, data=df.g)
+                        repeat.grids$Trend[i]<-df.g.trend$coefficients[[2]]
+                    },
+                    error = function(e){print("Insufficient data for evaluation")})
+            }
         }
 
         # find median trend
